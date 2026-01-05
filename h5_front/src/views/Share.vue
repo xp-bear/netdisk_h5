@@ -276,6 +276,7 @@ const textContent = ref('') // 文本/代码内容
 const loadingText = ref(false) // 加载文本状态
 const videoPlayer = ref(null)
 const audioPlayer = ref(null)
+const savedScrollPosition = ref(0) // 保存滚动位置
 
 // 触摸滑动相关
 const touchStartX = ref(0)
@@ -729,21 +730,32 @@ function stopMediaPlayback() {
 // 监听弹窗状态变化
 watch(showPreview, (newVal) => {
   if (newVal) {
-    // 弹窗打开时，添加一个历史记录
+    // 弹窗打开时，保存当前滚动位置
+    savedScrollPosition.value = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0
+    // 添加一个历史记录
     window.history.pushState({ modal: 'preview' }, '', window.location.href)
   } else {
     // 弹窗关闭时，停止所有媒体播放
     stopMediaPlayback()
+    
+    // 恢复滚动位置
+    nextTick(() => {
+      window.scrollTo(0, savedScrollPosition.value)
+      document.documentElement.scrollTop = savedScrollPosition.value
+      document.body.scrollTop = savedScrollPosition.value
+    })
   }
 })
 
 onActivated(() => {
-  // 页面激活时滚动到顶部
-  nextTick(() => {
-    window.scrollTo(0, 0)
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-  })
+  // 页面激活时，如果没有打开弹窗，才滚动到顶部
+  if (!showPreview.value) {
+    nextTick(() => {
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    })
+  }
 })
 
 onMounted(() => {

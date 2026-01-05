@@ -345,6 +345,7 @@ const selectedFolderId = ref(0)
 const selectedFolderName = ref('全部文件')
 const allFolders = ref([])
 const photoMode = ref('normal') // 'normal' 或 'checkin'
+const savedScrollPosition = ref(0) // 保存滚动位置
 
 // 触摸滑动相关
 const touchStartX = ref(0)
@@ -847,18 +848,32 @@ watch([showPreview, showFolderPicker, showUploadDetail, showCreateFolder, showPh
   const hasOpenPopup = preview || folderPicker || uploadDetail || createFolder || photoSheet
   
   if (hasOpenPopup) {
-    // 弹窗打开时，添加一个历史记录
+    // 弹窗打开时，保存当前滚动位置
+    if (preview) {
+      savedScrollPosition.value = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0
+    }
+    // 添加一个历史记录
     window.history.pushState({ modal: 'popup' }, '', window.location.href)
+  } else if (!preview && savedScrollPosition.value > 0) {
+    // 预览弹窗关闭时，恢复滚动位置
+    nextTick(() => {
+      window.scrollTo(0, savedScrollPosition.value)
+      document.documentElement.scrollTop = savedScrollPosition.value
+      document.body.scrollTop = savedScrollPosition.value
+      savedScrollPosition.value = 0
+    })
   }
 })
 
 onActivated(() => {
-  // 页面激活时滚动到顶部
-  nextTick(() => {
-    window.scrollTo(0, 0)
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-  })
+  // 页面激活时，如果没有打开弹窗，才滚动到顶部
+  if (!showPreview.value && !showFolderPicker.value && !showUploadDetail.value && !showCreateFolder.value && !showPhotoActionSheet.value) {
+    nextTick(() => {
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    })
+  }
 })
 
 onMounted(() => {
