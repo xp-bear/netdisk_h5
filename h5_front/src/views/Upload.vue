@@ -166,7 +166,7 @@
                       @keyup.enter="finishEditFileName(index)" autofocus />
                   </div>
                   <div v-else class="upload-file-name" @click="startEditFileName(index)">
-                    {{ item.name }}
+                    {{ getDisplayFileName(item) }}
                     <van-icon name="edit" size="14" class="edit-icon" v-if="!isUploading" />
                   </div>
                   <div class="upload-file-meta">
@@ -407,10 +407,12 @@ async function handleFileSelect(event) {
   // }
 
   // 保存待上传文件并显示详情页
+  const timestamp = new Date().getTime()
   pendingFiles.value = files.map(file => ({
     file,
     name: file.name,
     originalName: file.name,
+    timestamp: timestamp, // 保存固定的时间戳
     size: file.size,
     type: getFileType(file.name),
     status: 'pending' // pending, uploading, success, error
@@ -462,6 +464,7 @@ async function handleCameraCapture(event) {
       file,
       name: photoName,
       originalName: file.name,
+      timestamp: timestamp, // 保存固定的时间戳
       size: file.size,
       type: 'image',
       status: 'pending'
@@ -541,8 +544,7 @@ function selectFolder(folder) {
 }
 
 // 生成带时间戳的文件名
-function getFileNameWithTimestamp(fileName) {
-  const timestamp = new Date().getTime()
+function getFileNameWithTimestamp(fileName, timestamp) {
   const lastDotIndex = fileName.lastIndexOf('.')
   
   if (lastDotIndex === -1) {
@@ -555,6 +557,26 @@ function getFileNameWithTimestamp(fileName) {
     return `${nameWithoutExt}_${timestamp}${ext}`
   }
 }
+
+// 获取显示的文件名(根据是否添加时间戳)
+function getDisplayFileName(item) {
+  // 确定基础文件名:如果用户编辑了,使用编辑后的名称;否则使用原始文件名
+  const baseFileName = item.name !== item.originalName ? item.name : item.originalName
+  
+  // 如果开启了时间戳,在基础文件名上添加时间戳
+  if (addTimestamp.value) {
+    return getFileNameWithTimestamp(baseFileName, item.timestamp)
+  }
+  
+  // 否则直接返回基础文件名
+  return baseFileName
+}
+
+// 监听添加时间戳开关的变化
+watch(addTimestamp, () => {
+  // 当开关变化时,触发界面更新(通过getDisplayFileName函数自动处理)
+  // 不需要修改item.name,保持原始文件名不变
+})
 
 // 确认上传
 async function confirmUpload() {
@@ -569,10 +591,14 @@ async function confirmUpload() {
       item.status = 'uploading'
       
       try {
-        // 根据用户选择决定最终文件名（在上传前确定）
+        // 根据用户选择决定最终文件名
+        // 基础文件名: 如果用户编辑了文件名,使用编辑后的;否则使用原始文件名
+        const baseFileName = item.name !== item.originalName ? item.name : item.originalName
+        
+        // 根据时间戳开关决定最终文件名
         const finalFileName = addTimestamp.value 
-          ? getFileNameWithTimestamp(item.name)
-          : item.name
+          ? getFileNameWithTimestamp(baseFileName, item.timestamp)
+          : baseFileName
 
         // 创建一个新的 File 对象，使用最终文件名
         const fileToUpload = new File([item.file], finalFileName, {

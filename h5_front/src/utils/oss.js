@@ -20,7 +20,8 @@ export function initOSSClient() {
 export async function uploadFileToOSS(file, onProgress) {
     try {
         const ossClient = initOSSClient()
-        const fileName = `netdisk/${Date.now()}_${file.name}`
+        // 直接使用文件名,不添加时间戳前缀,确保OSS路径与文件名一致
+        const fileName = `netdisk/${file.name}`
 
     const result = await ossClient.multipartUpload(fileName, file, {
       progress: (p) => {

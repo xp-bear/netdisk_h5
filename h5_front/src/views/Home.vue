@@ -705,15 +705,68 @@ async function onFileActionSelect(action) {
   showFileActionSheet.value = false
 
   if (action.name === '下载') {
-    window.open(currentFile.value.url, '_blank')
+    downloadFile(currentFile.value)
   } else if (action.name === '分享') {
-    try {
-      const result = await fileApi.shareFile(currentFile.value.id)
-      if (result.success) {
-        showSuccessToast('分享成功')
-      }
-    } catch (error) {
-      console.error('分享失败:', error)
+    // 检查文件是否已分享
+    if (currentFile.value.isShared) {
+      // 已分享,提示是否取消分享
+      showConfirmDialog({
+        title: '取消分享',
+        message: '该文件已分享到广场，是否取消分享？',
+        confirmButtonText: '取消分享',
+        cancelButtonText: '保持分享',
+        confirmButtonColor: '#ee0a24',
+        teleport: 'body',
+        zIndex: 10020
+      }).then(async () => {
+        try {
+          const result = await shareApi.unshareFile(currentFile.value.id)
+          if (result.success) {
+            showSuccessToast('已取消分享')
+            // 更新文件状态
+            currentFile.value.isShared = false
+            // 更新列表中的文件状态
+            const file = fileStore.files.find(f => f.id === currentFile.value.id)
+            if (file) {
+              file.isShared = false
+            }
+          }
+        } catch (error) {
+          console.error('取消分享失败:', error)
+          showToast('取消分享失败')
+        }
+      }).catch(() => {
+        // 用户取消
+      })
+    } else {
+      // 未分享,确认是否分享
+      showConfirmDialog({
+        title: '分享到广场',
+        message: '分享后，该文件将在分享广场中展示，其他用户可以查看和保存到自己的网盘。是否确认分享？',
+        confirmButtonText: '确认分享',
+        cancelButtonText: '取消',
+        teleport: 'body',
+        zIndex: 10020
+      }).then(async () => {
+        try {
+          const result = await shareApi.shareFile(currentFile.value.id)
+          if (result.success) {
+            showSuccessToast('分享成功')
+            // 更新文件状态
+            currentFile.value.isShared = true
+            // 更新列表中的文件状态
+            const file = fileStore.files.find(f => f.id === currentFile.value.id)
+            if (file) {
+              file.isShared = true
+            }
+          }
+        } catch (error) {
+          console.error('分享失败:', error)
+          showToast('分享失败')
+        }
+      }).catch(() => {
+        // 用户取消
+      })
     }
   } else if (action.name === '删除') {
     showConfirmDialog({
